@@ -57,10 +57,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         isLoading = false;
       });
 
-      if (result == "success") {
+      if (result == "verification-sent" || result == "success") {
         showSnackBar(
           context,
-          "Kayıt Başarılı. Giriş sayfasına yönlendiriliyorsunuz...",
+          "Kayıt başarılı. Doğrulama maili gönderildi, maili onayladıktan sonra giriş yapabilirsiniz.",
         );
         Navigator.pushReplacement(
           context,
@@ -105,7 +105,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Image.asset("assets/cat1.jpg"),
+                Image.asset("assets/sign_in.jpg"),
                 const SizedBox(height: 20),
                 //Input Field for name
                 TextField(

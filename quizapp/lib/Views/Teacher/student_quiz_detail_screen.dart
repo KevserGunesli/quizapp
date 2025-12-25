@@ -1,39 +1,108 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
-import 'package:quizapp/Views/nav_bar_category_selection_screen.dart';
-import 'package:quizapp/Widgets/my_button.dart';
 
-class ResultScreen extends StatefulWidget {
+class StudentQuizDetailScreen extends StatefulWidget {
+  final String studentName;
+  final String quizTitle;
   final int score;
   final int totalQuestions;
-  final List<Map<String, dynamic>> questions;
-  final Map<int, int> userAnswers;
+  final String classroomId;
+  final String quizId;
+  final String studentId;
 
-  const ResultScreen({
+  const StudentQuizDetailScreen({
     super.key,
+    required this.studentName,
+    required this.quizTitle,
     required this.score,
     required this.totalQuestions,
-    required this.questions,
-    required this.userAnswers,
+    required this.classroomId,
+    required this.quizId,
+    required this.studentId,
   });
 
   @override
-  State<ResultScreen> createState() => _ResultScreenState();
+  State<StudentQuizDetailScreen> createState() =>
+      _StudentQuizDetailScreenState();
 }
 
-class _ResultScreenState extends State<ResultScreen> {
+class _StudentQuizDetailScreenState extends State<StudentQuizDetailScreen> {
   int touchedIndex = -1;
   bool _isLoaded = false;
+  List<Map<String, dynamic>> questions = [];
+  Map<int, int> userAnswers = {};
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _fetchDetails();
     Future.delayed(const Duration(milliseconds: 100), () {
       setState(() {
         _isLoaded = true;
       });
     });
+  }
+
+  Future<void> _fetchDetails() async {
+    try {
+      // Fetch Quiz Questions
+      final quizDoc = await FirebaseFirestore.instance
+          .collection('Classrooms')
+          .doc(widget.classroomId)
+          .collection('Quizzes')
+          .doc(widget.quizId)
+          .get();
+
+      // Fetch User Answers
+      final resultDoc = await FirebaseFirestore.instance
+          .collection('Classrooms')
+          .doc(widget.classroomId)
+          .collection('Quizzes')
+          .doc(widget.quizId)
+          .collection('Results')
+          .doc(widget.studentId)
+          .get();
+
+      if (quizDoc.exists && resultDoc.exists) {
+        final quizData = quizDoc.data();
+        final resultData = resultDoc.data();
+
+        if (quizData != null && quizData['questions'] != null) {
+          var questionsList = quizData['questions'];
+          if (questionsList is List) {
+            questions = questionsList.map((q) {
+              var questionData = q as Map<String, dynamic>;
+              var options = (questionData['options'] as List).cast<String>();
+              var answer = questionData['answer'] as String;
+              var correctIndex = options.indexOf(answer);
+
+              return {
+                'question': questionData['question'] ?? "No Question",
+                'correctOptionKey': correctIndex,
+                'options': options,
+              };
+            }).toList();
+          }
+        }
+
+        if (resultData != null && resultData['userAnswers'] != null) {
+          Map<String, dynamic> answersMap = resultData['userAnswers'];
+          userAnswers = answersMap.map(
+            (key, value) => MapEntry(int.parse(key), value as int),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching details: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -43,10 +112,9 @@ class _ResultScreenState extends State<ResultScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        foregroundColor: Colors.white,
+        title: Text("${widget.studentName} - ${widget.quizTitle}"),
         backgroundColor: Colors.blueAccent,
-        title: const Text("Sonuç Ekranı"),
-        centerTitle: true,
+        foregroundColor: Colors.white,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -55,18 +123,8 @@ class _ResultScreenState extends State<ResultScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Stack(
-                  children: [
-                    Lottie.network(
-                      "https://lottie.host/ac43c2f1-3fc8-4245-8e79-f834cfa00c5c/MQya15WKyU.json",
-                      height: 150,
-                      width: 300,
-                      fit: BoxFit.cover,
-                    ),
-                  ],
-                ),
                 const Text(
-                  "Quiz Tamamlandı!",
+                  "Quiz Sonucu",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -145,29 +203,11 @@ class _ResultScreenState extends State<ResultScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                _buildAnswerList(),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: MyButton(
-                        onTap: () {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  NavBarCategorySelectionScreen(
-                                    initialIndex: 1,
-                                  ),
-                            ),
-                            (route) => false,
-                          );
-                        },
-                        buttonText: 'Sıralamaya Git',
-                      ),
-                    ),
-                  ],
-                ),
+                if (isLoading)
+                  const CircularProgressIndicator()
+                else if (questions.isNotEmpty)
+                  _buildAnswerList(),
+                // Additional stats or info could go here
               ],
             ),
           ),
@@ -180,11 +220,11 @@ class _ResultScreenState extends State<ResultScreen> {
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: widget.questions.length,
+      itemCount: questions.length,
       itemBuilder: (context, index) {
-        final question = widget.questions[index];
+        final question = questions[index];
         final correctOptionIndex = question['correctOptionKey'] as int;
-        final userOptionIndex = widget.userAnswers[index];
+        final userOptionIndex = userAnswers[index];
         final options = question['options'] as List<String>;
 
         return Card(

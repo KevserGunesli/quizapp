@@ -77,7 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
         error.contains('wrong-password')) {
       return 'Email veya şifre hatalı';
     } else if (error.contains('user-not-found')) {
-      return 'Bu email ile kayıtlı kullanıcı bulunamadı';
+      return 'Giriş yapmadan önce kayıt olmalısınız';
+    } else if (error.contains('email-not-verified')) {
+      return 'Email adresiniz doğrulanmamış. Mail kutunuza doğrulama bağlantısını yeniden gönderdik.';
     } else if (error.contains('invalid-email')) {
       return 'Geçersiz email adresi';
     } else if (error.contains('user-disabled')) {
@@ -100,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                Image.asset("assets/cat.jpg"),
+                Image.asset("assets/login.jpg"),
                 const SizedBox(height: 20),
                 //Input Field for email
                 TextField(

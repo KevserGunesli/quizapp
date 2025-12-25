@@ -8,8 +8,15 @@ import 'package:quizapp/Widgets/my_button.dart';
 
 class QuizScreen extends StatefulWidget {
   final String categoryName;
+  final String? classroomId;
+  final String? quizId;
 
-  const QuizScreen({super.key, required this.categoryName});
+  const QuizScreen({
+    super.key,
+    required this.categoryName,
+    this.classroomId,
+    this.quizId,
+  });
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -20,6 +27,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int currentQuestionIndex = 0, score = 0;
   int? selectedOption;
   bool hasAnswered = false, isLoading = true;
+  Map<int, int> userAnswers = {};
 
   @override
   void initState() {
@@ -30,10 +38,20 @@ class _QuizScreenState extends State<QuizScreen> {
   //to fetch the question
   Future<void> _fetchQuestions() async {
     try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection('ListofQuestions')
-          .doc(widget.categoryName)
-          .get();
+      DocumentSnapshot<Map<String, dynamic>> snapshot;
+      if (widget.classroomId != null && widget.quizId != null) {
+        snapshot = await FirebaseFirestore.instance
+            .collection('Classrooms')
+            .doc(widget.classroomId)
+            .collection('Quizzes')
+            .doc(widget.quizId)
+            .get();
+      } else {
+        snapshot = await FirebaseFirestore.instance
+            .collection('ListofQuestions')
+            .doc(widget.categoryName)
+            .get();
+      }
 
       if (snapshot.exists) {
         var data = snapshot.data();
@@ -74,6 +92,7 @@ class _QuizScreenState extends State<QuizScreen> {
     setState(() {
       hasAnswered = true;
       selectedOption = index;
+      userAnswers[currentQuestionIndex] = index;
       if (questions[currentQuestionIndex]['correctOptionKey'] == index) {
         score++;
       }
@@ -93,8 +112,12 @@ class _QuizScreenState extends State<QuizScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              ResultScreen(score: score, totalQuestions: questions.length),
+          builder: (context) => ResultScreen(
+            score: score,
+            totalQuestions: questions.length,
+            questions: questions,
+            userAnswers: userAnswers,
+          ),
         ),
       );
     }
@@ -113,17 +136,53 @@ class _QuizScreenState extends State<QuizScreen> {
           .collection("userData")
           .doc(user.uid);
 
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        var snapshot = await transaction.get(userRef);
-
-        if (!snapshot.exists) return;
-
-        int existingScore = snapshot['score'] ?? 0;
-
-        transaction.update(userRef, {'score': existingScore + score});
+      // Save detailed result
+      await FirebaseFirestore.instance.collection('QuizResults').add({
+        'userId': user.uid,
+        'categoryName': widget.categoryName,
+        'score': score,
+        'totalQuestions': questions.length,
+        'timestamp': FieldValue.serverTimestamp(),
+        'classroomId': widget.classroomId,
+        'quizId': widget.quizId,
       });
+
+      if (widget.classroomId != null && widget.quizId != null) {
+        await FirebaseFirestore.instance
+            .collection('Classrooms')
+            .doc(widget.classroomId)
+            .collection('Quizzes')
+            .doc(widget.quizId)
+            .collection('Results')
+            .doc(user.uid)
+            .set({
+              'score': score,
+              'totalQuestions': questions.length,
+              'timestamp': FieldValue.serverTimestamp(),
+              'userAnswers': userAnswers.map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            });
+      }
+
+      if (widget.classroomId == null) {
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          var snapshot = await transaction.get(userRef);
+
+          if (!snapshot.exists) return;
+
+          int existingScore = snapshot['score'] ?? 0;
+
+          transaction.update(userRef, {'score': existingScore + score});
+        });
+      }
     } catch (e) {
       debugPrint('error updating score $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sonuç kaydedilirken hata oluştu: $e')),
+        );
+      }
     }
   }
 
@@ -135,7 +194,7 @@ class _QuizScreenState extends State<QuizScreen> {
     if (questions.isEmpty) {
       return Scaffold(
         appBar: _buildAppBar(),
-        body: const Center(child: Text("NO QUESTIONS AVAILABLE")),
+        body: const Center(child: Text("Bu kategori için soru bulunamadı.")),
       );
     }
     return Scaffold(

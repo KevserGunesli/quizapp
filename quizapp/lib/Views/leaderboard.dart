@@ -16,6 +16,15 @@ class Leaderboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Lider Tablosu",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.white,
+      ),
       backgroundColor: Colors.white,
       body: StreamBuilder(
         stream: getLeaderboardStream(),
@@ -29,69 +38,50 @@ class Leaderboard extends StatelessWidget {
           }
           final topThree = users.take(3).toList();
           final remainingUser = users.skip(3).toList();
-          return Column(
-            children: [
-              SizedBox(
-                height: 420,
-                child: Stack(
-                  children: [
-                    Image.asset(
-                      "assets/leaderboard.jpg",
-                      width: double.maxFinite,
-                      height: 420,
-                      fit: BoxFit.contain,
-                    ),
-                    const Positioned(
-                      top: 20,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Text(
-                          "Leaderboard",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
+          return ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: remainingUser.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return SizedBox(
+                  height: 420,
+                  child: Stack(
+                    children: [
+                      Image.asset(
+                        "assets/leaderboard.jpg",
+                        width: double.maxFinite,
+                        height: 420,
+                        fit: BoxFit.contain,
+                      ),
+                      if (topThree.isNotEmpty)
+                        Positioned(
+                          top: 25,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: _buildTopUser(topThree[0], 1, context),
                           ),
                         ),
-                      ),
-                    ),
-                    if (topThree.isNotEmpty)
-                      Positioned(
-                        top: 45,
-                        left: 0,
-                        right: 0,
-                        child: Center(
-                          child: _buildTopUser(topThree[0], 1, context),
+                      if (topThree.length >= 2)
+                        Positioned(
+                          top: 80,
+                          left: 15,
+                          child: _buildTopUser(topThree[1], 2, context),
                         ),
-                      ),
-                    if (topThree.length >= 2)
-                      Positioned(
-                        top: 80,
-                        left: 15,
-                        child: _buildTopUser(topThree[1], 2, context),
-                      ),
-                    if (topThree.length >= 3)
-                      Positioned(
-                        top: 95,
-                        right: 15,
-                        child: _buildTopUser(topThree[2], 3, context),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: remainingUser.length,
-                  itemBuilder: (context, index) {
-                    final user = remainingUser[index];
-                    final rank = index + 4;
-                    return _buildRemainingUser(user, rank);
-                  },
-                ),
-              ),
-            ],
+                      if (topThree.length >= 3)
+                        Positioned(
+                          top: 95,
+                          right: 15,
+                          child: _buildTopUser(topThree[2], 3, context),
+                        ),
+                    ],
+                  ),
+                );
+              }
+              final user = remainingUser[index - 1];
+              final rank = index + 3;
+              return _buildRemainingUser(user, rank);
+            },
           );
         },
       ),
@@ -140,7 +130,7 @@ class Leaderboard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("👍", style: TextStyle(fontSize: 14)),
+                const Text("⭐", style: TextStyle(fontSize: 14)),
                 const SizedBox(width: 4),
                 Text(
                   "${user['score'] * 102}",
@@ -210,7 +200,7 @@ class Leaderboard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Text("👍", style: TextStyle(fontSize: 14)),
+                const Text("⭐", style: TextStyle(fontSize: 14)),
                 const SizedBox(width: 4),
                 Text(
                   "${user['score'] * 102}",

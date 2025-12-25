@@ -14,9 +14,16 @@ class _QuizCategoryState extends State<QuizCategory> {
       .collection('ListofQuestions');
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          "Kategoriler",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+      ),
+      body: Padding(
         padding: EdgeInsets.symmetric(horizontal: 15),
         child: StreamBuilder(
           stream: myCollection.snapshots(),
